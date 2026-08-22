@@ -5,14 +5,19 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  reporter: "list",
+  // CI also writes an HTML report (playwright-report/) so a failure's
+  // traces/screenshots can be uploaded as a workflow artifact; local runs
+  // stay with the plain list reporter to avoid extra clutter.
+  reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: {
     baseURL: "http://localhost:3100",
     trace: "on-first-retry",
   },
+  // devices["iPhone 13"] launches WebKit (Safari's engine), not Chromium —
+  // matches what a real iPhone runs, and CI only needs to install webkit.
   projects: [
     {
-      name: "mobile-chrome",
+      name: "mobile-safari",
       use: { ...devices["iPhone 13"] },
     },
   ],

@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  checks:
+    name: Lint, unit/component tests, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - run: npm ci
+
+      - name: Lint
+        run: npx eslint .
+
+      # No ANTHROPIC_API_KEY needed: the Anthropic SDK is only ever
+      # constructed lazily inside a request handler, never at module load or
+      # build time, and every test mocks lib/env or lib/analysis/analyzeSuture
+      # rather than reading a real .env.local (which doesn't exist in CI).
+      - name: Unit/component tests
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+  e2e:
+    name: Playwright e2e
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - run: npm ci
+
+      # Only webkit is needed: playwright.config.ts's one project uses
+      # devices["iPhone 13"], which launches WebKit (Safari's engine) by
+      # default, not Chromium.
+      - name: Install Playwright's webkit browser
+        run: npx playwright install --with-deps webkit
+
+      # playwright.config.ts's webServer supplies its own
+      # USE_FAKE_ANALYSIS=true + a placeholder ANTHROPIC_API_KEY to the
+      # spawned dev server, so no secrets are needed here either — verified
+      # locally by running the suite with .env.local removed entirely.
+      - name: Run e2e tests
+        run: npm run e2e
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
