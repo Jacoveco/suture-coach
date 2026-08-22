@@ -32,7 +32,13 @@ Mobile-first Next.js app: trainees upload/capture a photo or video of a suturing
 - **Verified in a real browser, not just tests**: ran `next dev` with `USE_FAKE_ANALYSIS=true`, drove it with a small Playwright script at an iPhone-13 viewport (Chromium installed via `npx playwright install chromium`) — confirmed the heading/buttons render, a file upload triggers the analyzing state then the feedback summary + recommendations + correctly-positioned overlay annotations render, and zero console/page errors. Screenshots + driver script were scratch-only, not committed.
 - **38 tests passing**, `npm run build` and `npx eslint .` both clean.
 
-Pushed to GitHub through commit `96d5b0c`; this batch (M3–M6) is the next commit.
+**Video support (M7): done.**
+- `lib/media/extractFrames.ts` reworked so `extractFramesFromVideo()` returns ready-to-upload JPEG `File`s (via `canvas.toBlob`) instead of base64 strings — no wasteful base64 round-trip, and it flows through the exact same multipart path as a photo.
+- `app/page.tsx`: `handleFileSelected` branches on `isVideoFile()`; a video goes through a new `"extracting"` flow state, calls `extractFramesFromVideo()`, and on success submits **all** extracted frames as separate `media` entries in one `/api/analyze` request (the route already accepted multiple entries via `formData.getAll("media")`, so no server change was needed). The middle extracted frame is used as the overlay preview image. Extraction failure surfaces a clear error ("try a different clip, or upload a photo instead") without ever calling the API.
+- `app/page.test.tsx` — component tests mocking `extractFramesFromVideo` and `fetch`: photo path submits 1 file, video path submits all extracted frames, extraction failure shows an error and never calls the API, API failure and network failure both surface their respective error messages. **43 tests passing total.**
+- **Verified with a real video in a real browser** (not just mocks): since no video files existed to test with and `ffmpeg` isn't installed on this machine, generated one — used `sharp` (already vendored by Next.js) to synthesize 30 solid-color JPEG frames, then muxed them into a WebM with Playwright's own bundled `ffmpeg` binary (`node_modules`-adjacent, ships for its video-recording feature) piped through its `image2pipe` demuxer. Uploaded that WebM through the real `MediaCapture` input in headless Chromium against `next dev` with `USE_FAKE_ANALYSIS=true`: confirmed the "Extracting frames…" state appeared, the API request fired with the extracted frames, and the feedback UI rendered with the overlay drawn on the actual middle extracted frame (visibly one of the synthetic colors) — zero console errors. All driver scripts, generated media, and screenshots were scratch-only and removed after.
+
+Pushed to GitHub through commit `dd7b569` (+ a small `6ceff2e` metadata fix); M7 is the next commit.
 
 ## Architecture decisions already made (see full rationale worked out with a planning subagent, condensed here)
 
@@ -56,15 +62,15 @@ Pushed to GitHub through commit `96d5b0c`; this batch (M3–M6) is the next comm
 | M4 | `/api/analyze` route (photo only) | **Done** |
 | M5 | Feedback UI (`FeedbackSummary`, `RecommendationList`) | **Done** |
 | M6 | Visualization overlay (`SutureOverlay`, SVG) | **Done** |
-| M7 | Video support (client-side frame extraction) | Not started — **next up** |
-| M8 | Full Playwright e2e + optional CI | Not started |
+| M7 | Video support (client-side frame extraction) | **Done** |
+| M8 | Full Playwright e2e + optional CI | Not started — **next up** |
 | M9 | Polish & compliance pass (disclaimer visibility, error-state audit, v2 backlog) | Not started |
 
 ## Next session — pick up here
 
-1. **M7**: wire up video support. `lib/media/extractFrames.ts` already has `extractFramesFromVideo()` implemented (client-side `<video>`+`<canvas>`, needs a real browser to exercise — only the pure `selectFrameTimestamps()` is unit-tested so far). Extend `MediaCapture` to detect a video file (`isVideoFile()` already exists in `lib/media/validate.ts`), call `extractFramesFromVideo()`, and POST the extracted frames to `/api/analyze` the same way photos go (the route already accepts multiple `media` entries — `formData.getAll("media")` — so no route change should be needed, just confirm that end-to-end). Manually verify on a real mobile browser per the plan (jsdom can't render canvas).
-2. **M8**: real Playwright e2e test in a top-level `e2e/` dir (`playwright.config.ts` doesn't exist yet — only the ad hoc smoke script used this session, which was scratch-only). Reuse the fixture data (`lib/analysis/fixtures.ts`) + `USE_FAKE_ANALYSIS=true` the same way the manual smoke check did. Chromium is already installed (`npx playwright install chromium` ran this session).
-3. **M9**: disclaimer-visibility check, error-state audit (network failure, oversized file, unsupported codec, model refusal), v2 backlog note in this file.
+1. **M8**: real Playwright e2e test in a top-level `e2e/` dir (`playwright.config.ts` doesn't exist yet — only ad hoc smoke scripts have been used so far, always scratch-only). Reuse the fixture data (`lib/analysis/fixtures.ts`) + `USE_FAKE_ANALYSIS=true` the same way the manual smoke checks did. Chromium is already installed on this machine (`npx playwright install chromium`).
+2. **M9**: disclaimer-visibility check, error-state audit (network failure, oversized file, unsupported codec, model refusal), v2 backlog note in this file.
+3. Real device check still outstanding: everything so far has been verified via headless Chromium at an emulated iPhone-13 viewport, not an actual phone. Worth a real-device pass before calling v1 done, especially for the camera-capture (`capture="environment"`) affordance, which emulation can't truly exercise.
 
 ## Full architecture reference
 

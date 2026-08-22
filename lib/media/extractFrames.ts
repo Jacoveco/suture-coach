@@ -22,21 +22,34 @@ export function selectFrameTimestamps(
   return Array.from({ length: frameCount }, (_, i) => usableStart + step * i);
 }
 
-export interface ExtractedFrame {
-  base64: string;
-  mediaType: "image/jpeg";
+function canvasToJpegFile(canvas: HTMLCanvasElement, name: string): Promise<File> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error("Could not encode extracted frame as JPEG"));
+          return;
+        }
+        resolve(new File([blob], name, { type: "image/jpeg" }));
+      },
+      "image/jpeg",
+      0.85,
+    );
+  });
 }
 
 /**
  * Extracts representative frames from a video file using an off-DOM
- * <video> + <canvas>. Browser-only — relies on real video decoding and
- * canvas rendering, so this is exercised manually/in Playwright rather than
- * under jsdom (see extractFrames.test.ts for what IS unit-tested here).
+ * <video> + <canvas>, returning them as ready-to-upload JPEG Files so they
+ * flow through the exact same /api/analyze multipart path as a photo
+ * upload. Browser-only — relies on real video decoding and canvas
+ * rendering, so this is exercised manually/in Playwright rather than under
+ * jsdom (see extractFrames.test.ts for what IS unit-tested here).
  */
 export async function extractFramesFromVideo(
   file: File,
   frameCount: number = DEFAULT_FRAME_COUNT,
-): Promise<ExtractedFrame[]> {
+): Promise<File[]> {
   const video = document.createElement("video");
   video.preload = "metadata";
   video.muted = true;
@@ -52,23 +65,26 @@ export async function extractFramesFromVideo(
     });
 
     const timestamps = selectFrameTimestamps(video.duration, frameCount);
+    if (timestamps.length === 0) {
+      throw new Error("Video is too short to extract frames from");
+    }
+
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Could not create canvas 2D context");
 
-    const frames: ExtractedFrame[] = [];
-    for (const timestamp of timestamps) {
+    const frames: File[] = [];
+    for (let i = 0; i < timestamps.length; i++) {
       await new Promise<void>((resolve, reject) => {
         video.onseeked = () => resolve();
         video.onerror = () => reject(new Error("Failed to seek video"));
-        video.currentTime = timestamp;
+        video.currentTime = timestamps[i];
       });
 
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-      frames.push({ base64: dataUrl.split(",")[1] ?? "", mediaType: "image/jpeg" });
+      frames.push(await canvasToJpegFile(canvas, `frame-${i}.jpg`));
     }
 
     return frames;
