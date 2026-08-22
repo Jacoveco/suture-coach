@@ -44,7 +44,16 @@ Mobile-first Next.js app: trainees upload/capture a photo or video of a suturing
 - `app/page.test.tsx` — component tests mocking `extractFramesFromVideo` and `fetch`: photo path submits 1 file, video path submits all extracted frames, extraction failure shows an error and never calls the API, API failure and network failure both surface their respective error messages. **43 tests passing total.**
 - **Verified with a real video in a real browser** (not just mocks): since no video files existed to test with and `ffmpeg` isn't installed on this machine, generated one — used `sharp` (already vendored by Next.js) to synthesize 30 solid-color JPEG frames, then muxed them into a WebM with Playwright's own bundled `ffmpeg` binary (`node_modules`-adjacent, ships for its video-recording feature) piped through its `image2pipe` demuxer. Uploaded that WebM through the real `MediaCapture` input in headless Chromium against `next dev` with `USE_FAKE_ANALYSIS=true`: confirmed the "Extracting frames…" state appeared, the API request fired with the extracted frames, and the feedback UI rendered with the overlay drawn on the actual middle extracted frame (visibly one of the synthetic colors) — zero console errors. All driver scripts, generated media, and screenshots were scratch-only and removed after.
 
-Pushed to GitHub through commit `dd7b569` (+ a small `6ceff2e` metadata fix); M7 is the next commit.
+**Playwright e2e suite (M8): done.**
+- `playwright.config.ts` — `mobile-chrome` project using `devices["iPhone 13"]` (Playwright's iPhone preset actually launches **WebKit/Safari** by default, not Chromium — installed separately via `npx playwright install webkit`, since it's more representative of real iPhones anyway). `webServer` runs `npm run dev -- --port 3100` with `USE_FAKE_ANALYSIS=true` and `reuseExistingServer` outside CI.
+- `tests/fixtures/images/synthetic-suture-sample.jpg` — a small SVG-rendered-to-JPEG line drawing (a "wound line" with stitch marks, explicitly labeled "not a real photo" in the image itself), generated via `sharp`. The only media file checked into the repo, per CLAUDE.md's synthetic-fixtures rule.
+- `e2e/upload-analyze-feedback.spec.ts` — uploads the fixture image, asserts the analyzing state, feedback, an accessibly-labeled overlay annotation, and the disclaimer all render; a second test asserts the inline error path for an unsupported file type.
+- **Two real bugs caught in the test script itself, not the app**, both fixed: (1) `page.getByRole("alert")` matched two elements — our own error `<p>` *and* Next.js's own `#__next-route-announcer__` div, which also carries `role="alert"` for screen-reader route-change announcements; fixed by asserting on the error text directly. (2) The overlay's accessible name comes from `annotation.note ?? annotation.label` (note takes priority) — the test asserted the `label` field and failed against the real component behavior, which matches what `SutureOverlay.test.tsx` already correctly asserts.
+- Both e2e tests pass; full suite (`vitest`, `eslint`, `next build`) stays clean alongside it.
+
+**Cross-machine + LAN access: done** (see above) — pushed as commit `4910eae`.
+
+Pushed to GitHub through commit `4910eae`; M8 is the next commit.
 
 ## Architecture decisions already made (see full rationale worked out with a planning subagent, condensed here)
 
@@ -69,14 +78,14 @@ Pushed to GitHub through commit `dd7b569` (+ a small `6ceff2e` metadata fix); M7
 | M5 | Feedback UI (`FeedbackSummary`, `RecommendationList`) | **Done** |
 | M6 | Visualization overlay (`SutureOverlay`, SVG) | **Done** |
 | M7 | Video support (client-side frame extraction) | **Done** |
-| M8 | Full Playwright e2e + optional CI | Not started — **next up** |
-| M9 | Polish & compliance pass (disclaimer visibility, error-state audit, v2 backlog) | Not started |
+| M8 | Full Playwright e2e + optional CI | **Done** (CI not set up — no CI provider configured yet, only `forbidOnly`/`retries` are CI-aware) |
+| M9 | Polish & compliance pass (disclaimer visibility, error-state audit, v2 backlog) | Not started — **next up** |
 
 ## Next session — pick up here
 
-1. **M8**: real Playwright e2e test in a top-level `e2e/` dir (`playwright.config.ts` doesn't exist yet — only ad hoc smoke scripts have been used so far, always scratch-only). Reuse the fixture data (`lib/analysis/fixtures.ts`) + `USE_FAKE_ANALYSIS=true` the same way the manual smoke checks did. Chromium is already installed on this machine (`npx playwright install chromium`).
-2. **M9**: disclaimer-visibility check, error-state audit (network failure, oversized file, unsupported codec, model refusal), v2 backlog note in this file.
-3. Real device check still outstanding: everything so far has been verified via headless Chromium at an emulated iPhone-13 viewport, not an actual phone. Worth a real-device pass before calling v1 done, especially for the camera-capture (`capture="environment"`) affordance, which emulation can't truly exercise.
+1. **M9**: disclaimer-visibility check (already covered by the e2e test, but worth a deliberate audit of every state, not just the happy path), error-state audit (network failure, oversized file, unsupported codec, model refusal — some already have unit/component coverage, confirm all of them), v2 backlog note in this file.
+2. **CI**: no GitHub Actions workflow exists yet. `npm run test`, `npm run e2e` (needs `npx playwright install` in the workflow), `npm run build`, and `npx eslint .` would all need to run on push/PR — confirm with the user whether they want this before adding it (per the original plan's M8 note).
+3. Real device check still outstanding: everything so far has been verified via headless Chromium/WebKit at an emulated iPhone-13 viewport, not an actual phone. `docs/DEVELOPMENT.md` now documents how to reach the dev server from a real phone on the same Wi-Fi — worth doing that pass before calling v1 done, especially for the camera-capture (`capture="environment"`) affordance, which emulation can't truly exercise.
 
 ## Full architecture reference
 
