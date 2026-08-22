@@ -25,6 +25,14 @@ describe("Home page", () => {
     vi.stubGlobal("fetch", vi.fn());
   });
 
+  it("shows the non-clinical training-tool disclaimer before any upload", () => {
+    render(<Home />);
+    expect(
+      screen.getByText(/Training tool only/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/not a diagnostic or clinical device/)).toBeInTheDocument();
+  });
+
   it("submits a single-frame request for a photo upload and renders feedback", async () => {
     vi.mocked(fetch).mockResolvedValue(
       new Response(JSON.stringify({ analysis: FAKE_SUTURE_ANALYSIS }), { status: 200 }),

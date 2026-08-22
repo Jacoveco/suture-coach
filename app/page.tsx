@@ -89,6 +89,12 @@ export default function Home() {
           </p>
         </header>
 
+        <p className="rounded-lg border border-zinc-200 p-3 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-500">
+          Training tool only. For use with simulators and training models — never real
+          patients. This is not a diagnostic or clinical device, and feedback should not
+          be used to make clinical decisions.
+        </p>
+
         <MediaCapture onFileSelected={handleFileSelected} />
 
         {state.status === "extracting" && (

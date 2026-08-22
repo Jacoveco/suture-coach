@@ -21,6 +21,7 @@ vi.mock("@/lib/env", () => ({
 }));
 
 import { POST } from "./route";
+import { getEnv } from "@/lib/env";
 
 function makeFile(name: string, type: string, sizeBytes: number): File {
   return new File([new Uint8Array(sizeBytes)], name, { type });
@@ -92,5 +93,19 @@ describe("POST /api/analyze", () => {
     const body = await response.json();
     expect(body.error.code).toBe("analysis_failed");
     expect(body.error.message).toBe("upstream boom");
+  });
+
+  it("returns a JSON 500 (not Next's default error page) when getEnv() throws", async () => {
+    vi.mocked(getEnv).mockImplementationOnce(() => {
+      throw new Error("ANTHROPIC_API_KEY is required");
+    });
+    const file = makeFile("photo.jpg", "image/jpeg", 1024);
+
+    const response = await POST(requestWithFile(file));
+    expect(response.status).toBe(500);
+    const body = await response.json();
+    expect(body.error.code).toBe("server_error");
+    expect(body.error.message).toBe("ANTHROPIC_API_KEY is required");
+    expect(mockAnalyzeSuture).not.toHaveBeenCalled();
   });
 });

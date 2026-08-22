@@ -53,7 +53,25 @@ Mobile-first Next.js app: trainees upload/capture a photo or video of a suturing
 
 **Cross-machine + LAN access: done** (see above) — pushed as commit `4910eae`.
 
-Pushed to GitHub through commit `4910eae`; M8 is the next commit.
+**Polish & compliance pass (M9): done.**
+- **Disclaimer visibility fix**: the non-clinical disclaimer text previously only appeared inside `FeedbackSummary`, i.e. only *after* a successful analysis. Added a persistent, always-visible notice right under the header in `app/page.tsx` ("Training tool only... not a diagnostic or clinical device...") so it's seen before a user uploads anything at all, regardless of whether analysis ever completes. Covered by a new `page.test.tsx` test.
+- **Real bug found and fixed during the error-state audit**: `app/api/analyze/route.ts` called `getEnv()` unguarded at the top of the handler. If it throws (e.g. a misconfigured server missing `ANTHROPIC_API_KEY` at runtime), the exception would have escaped to Next's default error handling — a generic HTML/500 response, not our typed `{error: {code, message}}` JSON shape — which the client's unconditional `response.json()` call would then choke on. Wrapped the whole handler in a top-level try/catch with a new `server_error` code (500) as the last-resort fallback. New test mocks `getEnv()` throwing and asserts a clean JSON 500 comes back.
+- **Full audit of error states, each with confirmed test coverage**: no file provided (400 `no_file`), unsupported file type (400 `invalid_file_type`), oversized file (400 `file_too_large`), video frame-extraction failure — bad codec/corrupt file (client-side error, API never called), model refusal (`analysis_failed`, 502), malformed/missing structured output from the vision API (`analysis_failed`, 502), network failure reaching `/api/analyze` (client-side connection error), and now server misconfiguration (`server_error`, 500).
+- **Known, intentional gap, documented rather than fixed**: `MediaCapture`'s client-side size check defaults to 25MB and isn't wired to the server's `MAX_UPLOAD_SIZE_MB` env var (which isn't `NEXT_PUBLIC_`-prefixed, so it isn't available client-side). If an operator changes the server limit without also updating the client default, the two can drift — the server remains authoritative and will still reject correctly with a clear error either way, so this is a UX nicety gap, not a correctness/security one. Left as-is rather than adding a `NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB` var for a non-critical mismatch (see v2 backlog below if it becomes worth fixing).
+- 45 tests passing (vitest) + 2 e2e (playwright); build and lint both clean.
+
+### v2 backlog (deferred, not started)
+
+- Persistence/history (save past analyses per user) — explicitly deferred in M0 as a compliance decision point (storage retention policy, deletion, whether it changes the HIPAA/PHI posture per CLAUDE.md's Data Handling section) rather than defaulted in.
+- Custom in-page camera UI (live preview, framing guide) instead of the native file-input `capture` attribute — the current approach was chosen deliberately for v1 simplicity (see architecture decisions below); revisit if users want in-app framing guidance.
+- Server-side video frame extraction (e.g. ffmpeg) as a fallback if client-side `<video>`/`<canvas>` extraction proves unreliable across real devices — flagged as a v2 option in the original plan, not yet needed.
+- Multi-frame "deep dive" analysis mode (analyze more than 3 video frames, or let the user pick specific frames).
+- CI (GitHub Actions running `vitest`, `playwright`, `eslint`, `next build` on push/PR) — not set up yet, needs the user's go-ahead per the original plan.
+- Sync (or deliberately decouple with clearer messaging) the client-side and server-side max-upload-size limits — see the known gap above.
+- Rate limiting / abuse protection on `/api/analyze` — worth reconsidering now that the dev server is routinely reachable on the LAN and the API costs real money per call once a live key is configured.
+- A dedicated review of `docs/DEVELOPMENT.md`'s LAN-access guidance once tested against a real phone (see "Next session" below) — update it if anything in practice differs from what was verified in headless Chromium/WebKit.
+
+Pushed to GitHub through commit `4910eae` (M8) and this session's M9 work is the next commit.
 
 ## Architecture decisions already made (see full rationale worked out with a planning subagent, condensed here)
 
@@ -79,13 +97,15 @@ Pushed to GitHub through commit `4910eae`; M8 is the next commit.
 | M6 | Visualization overlay (`SutureOverlay`, SVG) | **Done** |
 | M7 | Video support (client-side frame extraction) | **Done** |
 | M8 | Full Playwright e2e + optional CI | **Done** (CI not set up — no CI provider configured yet, only `forbidOnly`/`retries` are CI-aware) |
-| M9 | Polish & compliance pass (disclaimer visibility, error-state audit, v2 backlog) | Not started — **next up** |
+| M9 | Polish & compliance pass (disclaimer visibility, error-state audit, v2 backlog) | **Done** |
+
+All nine v1 milestones from the original plan are now complete. Remaining work is the v2 backlog above plus final real-device verification (in progress — see "Next session").
 
 ## Next session — pick up here
 
-1. **M9**: disclaimer-visibility check (already covered by the e2e test, but worth a deliberate audit of every state, not just the happy path), error-state audit (network failure, oversized file, unsupported codec, model refusal — some already have unit/component coverage, confirm all of them), v2 backlog note in this file.
-2. **CI**: no GitHub Actions workflow exists yet. `npm run test`, `npm run e2e` (needs `npx playwright install` in the workflow), `npm run build`, and `npx eslint .` would all need to run on push/PR — confirm with the user whether they want this before adding it (per the original plan's M8 note).
-3. Real device check still outstanding: everything so far has been verified via headless Chromium/WebKit at an emulated iPhone-13 viewport, not an actual phone. `docs/DEVELOPMENT.md` now documents how to reach the dev server from a real phone on the same Wi-Fi — worth doing that pass before calling v1 done, especially for the camera-capture (`capture="environment"`) affordance, which emulation can't truly exercise.
+1. **Real device check**: in progress this session — dev server started bound to the LAN with `USE_FAKE_ANALYSIS=true` for the user to test from their actual phone (not just emulated Chromium/WebKit). Confirm: does the page load and look right at actual phone scale; does "Take Photo / Video" actually open the camera (the `capture="environment"` affordance emulation can't test); does a real photo upload flow through end-to-end. Update this section with the outcome once confirmed.
+2. **CI**: no GitHub Actions workflow exists yet — confirm with the user whether they want one before adding it (would run `vitest`, `playwright` [needs `npx playwright install` in the workflow], `eslint`, `next build` on push/PR).
+3. Once a real `ANTHROPIC_API_KEY` is available, do one live end-to-end run against the real Claude API (everything so far has used `USE_FAKE_ANALYSIS=true`) to sanity-check prompt quality and real response shape/latency.
 
 ## Full architecture reference
 
