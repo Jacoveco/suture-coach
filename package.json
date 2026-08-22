@@ -6,7 +6,8 @@
     "node": ">=20.11.0"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "cross-env USE_FAKE_ANALYSIS=true next dev",
+    "dev:real": "cross-env USE_FAKE_ANALYSIS=false next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -31,6 +32,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.1.0",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
     "jsdom": "^30.0.1",

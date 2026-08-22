@@ -13,7 +13,8 @@ export interface MediaCaptureProps {
   maxSizeMb?: number;
 }
 
-export function MediaCapture({ onFileSelected, maxSizeMb = 25 }: MediaCaptureProps) {
+// Matches lib/env.ts's MAX_UPLOAD_SIZE_MB default — keep these in sync.
+export function MediaCapture({ onFileSelected, maxSizeMb = 10 }: MediaCaptureProps) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const libraryInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);

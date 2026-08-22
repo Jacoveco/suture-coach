@@ -7,10 +7,13 @@ const envSchema = z.object({
     .string()
     .optional()
     .transform((v) => v === "true"),
+  // Default kept modest (not the ~25MB+ a modern phone photo can reach) since
+  // this is a direct lever on Claude API cost per request — every uploaded
+  // byte becomes billed input tokens.
   MAX_UPLOAD_SIZE_MB: z
     .string()
     .optional()
-    .transform((v) => (v ? Number(v) : 25)),
+    .transform((v) => (v ? Number(v) : 10)),
 });
 
 export type Env = z.infer<typeof envSchema>;

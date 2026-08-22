@@ -30,20 +30,20 @@ describe("getEnv", () => {
     expect(env.ANTHROPIC_API_KEY).toBe("sk-ant-test-key");
     expect(env.ANALYSIS_MODEL).toBe("claude-opus-5");
     expect(env.USE_FAKE_ANALYSIS).toBe(false);
-    expect(env.MAX_UPLOAD_SIZE_MB).toBe(25);
+    expect(env.MAX_UPLOAD_SIZE_MB).toBe(10);
   });
 
   it("respects overrides", async () => {
     process.env.ANTHROPIC_API_KEY = "sk-ant-test-key";
     process.env.ANALYSIS_MODEL = "claude-sonnet-5";
     process.env.USE_FAKE_ANALYSIS = "true";
-    process.env.MAX_UPLOAD_SIZE_MB = "10";
+    process.env.MAX_UPLOAD_SIZE_MB = "5";
 
     const { getEnv } = await import("./env");
     const env = getEnv();
 
     expect(env.ANALYSIS_MODEL).toBe("claude-sonnet-5");
     expect(env.USE_FAKE_ANALYSIS).toBe(true);
-    expect(env.MAX_UPLOAD_SIZE_MB).toBe(10);
+    expect(env.MAX_UPLOAD_SIZE_MB).toBe(5);
   });
 });

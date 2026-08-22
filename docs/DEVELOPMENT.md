@@ -22,9 +22,25 @@ npm install
 cp .env.local.example .env.local   # then fill in ANTHROPIC_API_KEY
 ```
 
-`.env.local` is gitignored — never commit it. Without a real key, set
-`USE_FAKE_ANALYSIS=true` in `.env.local` instead to exercise the full UI against
-canned fixture data (see `lib/analysis/fixtures.ts`).
+`.env.local` is gitignored — never commit it, and never paste a real key into a
+chat/AI session; edit the file directly instead.
+
+## `npm run dev` never spends real API credits — `npm run dev:real` does
+
+Every Claude vision call costs money once a real `ANTHROPIC_API_KEY` is
+configured, so this repo defaults to **fake analysis** no matter what's in
+`.env.local`:
+
+| Command | `USE_FAKE_ANALYSIS` | What it does |
+|---|---|---|
+| `npm run dev` | forced `true` | Returns canned fixture data (`lib/analysis/fixtures.ts`). Safe to run as often as you like — never calls the real API, even if `.env.local` has a real key configured. |
+| `npm run dev:real` | forced `false` | Calls the real Claude API using the key in `.env.local`. Use this **only** when you deliberately want to see real feedback on real content. |
+
+Both scripts set `USE_FAKE_ANALYSIS` via `cross-env` regardless of `.env.local`'s
+own value, so there's no risk of forgetting to toggle a setting back — plain
+`npm run dev` is always the safe default. `.env.local.example` also ships with
+`USE_FAKE_ANALYSIS=true` as a belt-and-suspenders default, in case `next dev` or
+`next start` is ever invoked directly instead of through these npm scripts.
 
 ## Running on localhost
 
@@ -81,9 +97,22 @@ that device, even though the page itself renders fine.
 office private ranges. If your network uses `172.16.0.0/12` (`172.16.x.x` through
 `172.31.x.x`) instead, add your specific `172.x.*.*` entry there too.
 
-## Verifying end-to-end without a real API key
+## Verifying end-to-end without spending API credits
 
-Set `USE_FAKE_ANALYSIS=true` (in `.env.local`, or inline: `USE_FAKE_ANALYSIS=true npm
-run dev`) to bypass the real Claude API call and return the canned fixture from
-`lib/analysis/fixtures.ts` — useful for trying the full capture → analyze → feedback
-→ overlay flow, including from your phone, before wiring up a real API key.
+Just use the default `npm run dev` (see above) — it always returns the canned
+fixture from `lib/analysis/fixtures.ts`, so you can try the full capture → analyze
+→ feedback → overlay flow, including from your phone, for free and as often as you
+like. Reach for `npm run dev:real` only when you specifically want to see real
+feedback on real content.
+
+## Upload size limit
+
+`MAX_UPLOAD_SIZE_MB` (default 10) caps how large a photo/video upload can be,
+enforced both client-side (`MediaCapture`) and server-side (`/api/analyze`) — kept
+modest by default since a larger file becomes more billed input tokens on every
+real Claude API call. Note this caps file *size*, not image *resolution* — Claude's
+vision token cost scales with pixel dimensions more directly than raw bytes, so a
+very high-resolution but well-compressed photo could still be costlier per call
+than the MB cap alone suggests. Client-side image resizing before upload (capping
+the long edge, not just the file size) is a v2 backlog item if this becomes worth
+tightening further — see `docs/PLAN.md`.
