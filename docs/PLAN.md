@@ -12,6 +12,12 @@ Mobile-first Next.js app: trainees upload/capture a photo or video of a suturing
 
 **App scaffold:** Next.js 16.2.12 (App Router), React 19.2.4, TypeScript, Tailwind v4, ESLint — builds and lints cleanly (`npm run build`, `npx eslint .`). Root `AGENTS.md` adopted from the scaffold (points future coding sessions at `node_modules/next/dist/docs/`, since this Next.js version is newer than any training data). `.gitignore` extended for test artifacts + `.env.local.example` exception.
 
+**Cross-machine + LAN access: done.** See `docs/DEVELOPMENT.md` for the full runbook. Summary:
+- The app has zero OS-specific code (no hardcoded paths, no `process.platform` branching) — confirmed by grepping the source. `package.json` now pins `engines.node >= 20.11.0` and a `.nvmrc` (`24`) is checked in so a second machine (e.g. a MacBook) gets a matching Node version via `nvm use`.
+- `next dev` already binds to `0.0.0.0` and prints a `Network:` URL on startup in this Next.js version — no config needed for that part.
+- Verified the actual blocker for phone access is **not** firewall or binding, but Next.js's dev-only cross-origin protection: a same-origin page/script load doesn't send an `Origin` header so it already worked, but the dev server's Hot-Reload **WebSocket connection always sends `Origin`**, so without an allowlist entry, loading the app from a LAN IP silently broke live-reload from that device. Fixed by adding `allowedDevOrigins: ["192.168.*.*", "10.*.*.*"]` to `next.config.ts` — confirmed via direct `curl` with an `Origin` header that the LAN IP is now allowed while an unrelated origin still correctly gets a 403, then confirmed the full capture → analyze → feedback flow works when loaded via the machine's actual LAN IP in headless Chromium.
+- This machine's Windows Firewall already had a rule allowing `node.exe` inbound on the "Public" profile, which is what this Wi-Fi network is categorized as — confirmed via `Get-NetFirewallRule`/`Get-NetConnectionProfile` rather than assumed. `docs/DEVELOPMENT.md` documents what to check if a different machine's firewall isn't preconfigured this way (both Windows and macOS).
+
 **Analysis pipeline (M1 + M2): done.**
 - `lib/env.ts` — Zod-validated env accessor (`ANTHROPIC_API_KEY` required; `ANALYSIS_MODEL`, `USE_FAKE_ANALYSIS`, `MAX_UPLOAD_SIZE_MB` optional with defaults).
 - `lib/anthropic/client.ts` — the one Anthropic SDK client singleton.
