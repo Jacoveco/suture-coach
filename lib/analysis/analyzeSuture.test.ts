@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FAKE_SUTURE_ANALYSIS } from "./fixtures";
 
-const mockParse = vi.fn();
+const { mockParse } = vi.hoisted(() => ({ mockParse: vi.fn() }));
 
 vi.mock("@/lib/anthropic/client", () => ({
   getAnthropicClient: () => ({
