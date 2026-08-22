@@ -25,6 +25,29 @@ cp .env.local.example .env.local   # then fill in ANTHROPIC_API_KEY
 `.env.local` is gitignored — never commit it, and never paste a real key into a
 chat/AI session; edit the file directly instead.
 
+## Easiest way to turn the app on/off (Windows, no terminal needed)
+
+Two double-clickable files sit in the repo root:
+
+- **`start-suture-coach.bat`** — double-click it, read the cost warning, press any
+  key, and a new console window opens running the app in **real analysis mode**
+  (`npm run dev:real` — see below). That window prints the `Local:` and `Network:`
+  URLs once it's ready.
+- **`stop-suture-coach.bat`** — double-click it to shut the app down. It finds
+  whatever's listening on port 3000 and stops it. Safe to run even if the app is
+  already off (it just says so and exits).
+
+Turning the app off is also as simple as closing the console window `start-suture-coach.bat`
+opened — that stops the server too, exactly like `stop-suture-coach.bat` does.
+
+Feel free to right-click either file → **Send to → Desktop (create shortcut)**, or
+pin a shortcut to your taskbar, so you never have to open the project folder to
+start/stop it.
+
+These just wrap the terminal commands below — use `npm run dev`/`npm run dev:real`
+directly instead any time you're already in a terminal (e.g. VS Code's integrated
+terminal), or on macOS/Linux, where these `.bat` files don't apply.
+
 ## `npm run dev` never spends real API credits — `npm run dev:real` does
 
 Every Claude vision call costs money once a real `ANTHROPIC_API_KEY` is

@@ -95,7 +95,9 @@ Mobile-first Next.js app: trainees upload/capture a photo or video of a suturing
 - Tune the escalation threshold in `analyzeSuture.ts` — it currently escalates on *either* "medium" or "low" confidence (erring toward accuracy per the user's stated priority), which could escalate often enough to erode Sonnet's cost advantage in practice. Worth measuring real escalation rate once used against the live API and adjusting (e.g. escalate only on "low") if Sonnet rarely reports "high".
 - A hybrid triage pre-filter using an even cheaper model (e.g. Haiku 4.5) ahead of Sonnet/Opus, per the cost-alternative research above — not built now since it wasn't asked for, but the same escalation pattern in `analyzeSuture.ts` would extend to a 3-tier cascade if wanted later.
 
-Pushed to GitHub through commit `4910eae` (M8) and this session's M9 work is the next commit.
+**Double-click start/stop scripts (Windows): done.** `start-suture-coach.bat` / `stop-suture-coach.bat` in the repo root wrap `npm run dev:real` and a port-3000 `taskkill`, so the app can be turned on/off without opening a terminal — for regular real-world use now that the core flow is verified end-to-end. Documented in `docs/DEVELOPMENT.md`. Tested the actual `.bat` files (not just the underlying npm scripts): start brings the server up and serves `200`, stop reliably kills it (including a fix for a cosmetic double-print when `netstat` lists both the IPv4 and IPv6 listener for the same PID).
+
+All CI checks pass on GitHub's own infrastructure (not just locally) as of commit `f0d67ce`; this session's work is pushed through there plus whatever commit follows for the items above.
 
 ## Architecture decisions already made (see full rationale worked out with a planning subagent, condensed here)
 
