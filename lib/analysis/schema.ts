@@ -47,6 +47,12 @@ export const SutureAnalysisSchema = z.object({
   annotations: z.array(OverlayAnnotationSchema),
   // The model always restates: training tool, not clinical/diagnostic.
   disclaimer: z.string(),
+  // Self-assessed confidence in this specific analysis (image clarity,
+  // ambiguity of technique cues) — drives the triage/escalation decision in
+  // analyzeSuture.ts when a cheaper model is used. Required so a cheap-model
+  // response can never silently omit it.
+  confidence: z.enum(["high", "medium", "low"]),
+  confidenceReason: z.string().optional(),
 });
 
 export type OverlayAnnotation = z.infer<typeof OverlayAnnotationSchema>;

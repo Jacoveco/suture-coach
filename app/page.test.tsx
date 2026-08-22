@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { FAKE_SUTURE_ANALYSIS } from "@/lib/analysis/fixtures";
 
 const { mockExtractFrames } = vi.hoisted(() => ({ mockExtractFrames: vi.fn() }));
@@ -35,7 +36,14 @@ describe("Home page", () => {
 
   it("submits a single-frame request for a photo upload and renders feedback", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      new Response(JSON.stringify({ analysis: FAKE_SUTURE_ANALYSIS }), { status: 200 }),
+      new Response(
+        JSON.stringify({
+          analysis: FAKE_SUTURE_ANALYSIS,
+          modelUsed: "claude-opus-5",
+          escalated: false,
+        }),
+        { status: 200 },
+      ),
     );
 
     render(<Home />);
@@ -48,7 +56,55 @@ describe("Home page", () => {
     expect(fetch).toHaveBeenCalledOnce();
     const formData = vi.mocked(fetch).mock.calls[0][1]!.body as FormData;
     expect(formData.getAll("media")).toHaveLength(1);
+    expect(formData.get("model")).toBe("claude-opus-5");
     expect(mockExtractFrames).not.toHaveBeenCalled();
+    expect(screen.getByText(/Analyzed with Opus 5/)).toBeInTheDocument();
+  });
+
+  it("lets the user pick Sonnet 5 and sends that model in the request", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          analysis: FAKE_SUTURE_ANALYSIS,
+          modelUsed: "claude-sonnet-5",
+          escalated: false,
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const user = userEvent.setup();
+    render(<Home />);
+    await user.click(screen.getByRole("radio", { name: /Sonnet 5/ }));
+    selectFile(makeFile("photo.jpg", "image/jpeg"));
+
+    await waitFor(() => expect(screen.getByText(FAKE_SUTURE_ANALYSIS.summary)).toBeInTheDocument());
+
+    const formData = vi.mocked(fetch).mock.calls[0][1]!.body as FormData;
+    expect(formData.get("model")).toBe("claude-sonnet-5");
+    expect(screen.getByText(/Analyzed with Sonnet 5/)).toBeInTheDocument();
+  });
+
+  it("shows an escalation notice when the server escalated to Opus", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          analysis: FAKE_SUTURE_ANALYSIS,
+          modelUsed: "claude-opus-5",
+          escalated: true,
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const user = userEvent.setup();
+    render(<Home />);
+    await user.click(screen.getByRole("radio", { name: /Sonnet 5/ }));
+    selectFile(makeFile("photo.jpg", "image/jpeg"));
+
+    await waitFor(() =>
+      expect(screen.getByText(/automatically escalated from Sonnet 5/)).toBeInTheDocument(),
+    );
   });
 
   it("extracts frames from a video upload and submits all of them", async () => {
@@ -59,7 +115,14 @@ describe("Home page", () => {
     ];
     mockExtractFrames.mockResolvedValue(frames);
     vi.mocked(fetch).mockResolvedValue(
-      new Response(JSON.stringify({ analysis: FAKE_SUTURE_ANALYSIS }), { status: 200 }),
+      new Response(
+        JSON.stringify({
+          analysis: FAKE_SUTURE_ANALYSIS,
+          modelUsed: "claude-opus-5",
+          escalated: false,
+        }),
+        { status: 200 },
+      ),
     );
 
     render(<Home />);

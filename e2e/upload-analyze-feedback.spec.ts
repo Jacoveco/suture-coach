@@ -18,6 +18,13 @@ test.describe("upload -> analyze -> feedback -> visualization", () => {
     await expect(page.getByText("Take Photo / Video")).toBeVisible();
     await expect(page.getByText("Choose from Library")).toBeVisible();
 
+    // Model selector defaults to Opus 5 and offers Sonnet 5 as an alternative.
+    await expect(page.getByRole("radio", { name: /Opus 5/ })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await expect(page.getByRole("radio", { name: /Sonnet 5/ })).toBeVisible();
+
     const libraryInput = page.getByLabel("Choose a photo or video from your library");
     await libraryInput.setInputFiles(FIXTURE_IMAGE);
 
@@ -26,6 +33,8 @@ test.describe("upload -> analyze -> feedback -> visualization", () => {
     await expect(page.getByText("Loosen the middle stitches")).toBeVisible({
       timeout: 15_000,
     });
+
+    await expect(page.getByText(/Analyzed with Opus 5/)).toBeVisible();
 
     // At least one overlay annotation rendered, accessibly labeled with its note.
     await expect(

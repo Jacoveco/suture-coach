@@ -41,4 +41,26 @@ describe("SutureAnalysisSchema", () => {
     const result = SutureAnalysisSchema.safeParse(invalid);
     expect(result.success).toBe(false);
   });
+
+  it("rejects a response missing confidence", () => {
+    const { confidence: _confidence, ...withoutConfidence } = FAKE_SUTURE_ANALYSIS;
+    const result = SutureAnalysisSchema.safeParse(withoutConfidence);
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects an invalid confidence value", () => {
+    const invalid = { ...FAKE_SUTURE_ANALYSIS, confidence: "very-high" };
+    const result = SutureAnalysisSchema.safeParse(invalid);
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts confidence below high with an optional confidenceReason", () => {
+    const valid = {
+      ...FAKE_SUTURE_ANALYSIS,
+      confidence: "low",
+      confidenceReason: "Lighting obscures stitch edges.",
+    };
+    const result = SutureAnalysisSchema.safeParse(valid);
+    expect(result.success).toBe(true);
+  });
 });

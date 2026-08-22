@@ -48,19 +48,83 @@ describe("analyzeSuture", () => {
     });
 
     const result = await analyzeSuture({ images: [SAMPLE_IMAGE] });
-    expect(result).toEqual(FAKE_SUTURE_ANALYSIS);
+    expect(result).toEqual({
+      analysis: FAKE_SUTURE_ANALYSIS,
+      modelUsed: "claude-opus-5",
+      escalated: false,
+    });
     expect(mockParse).not.toHaveBeenCalled();
   });
 
-  it("returns parsed_output on a successful call", async () => {
+  it("returns parsed_output on a successful call, with no escalation when confidence is high", async () => {
     mockParse.mockResolvedValue({
       stop_reason: "end_turn",
       parsed_output: FAKE_SUTURE_ANALYSIS,
     });
 
     const result = await analyzeSuture({ images: [SAMPLE_IMAGE] });
-    expect(result).toEqual(FAKE_SUTURE_ANALYSIS);
+    expect(result).toEqual({
+      analysis: FAKE_SUTURE_ANALYSIS,
+      modelUsed: "claude-opus-5",
+      escalated: false,
+    });
     expect(mockParse).toHaveBeenCalledOnce();
+  });
+
+  it("uses the requested selectable model when provided", async () => {
+    mockParse.mockResolvedValue({ stop_reason: "end_turn", parsed_output: FAKE_SUTURE_ANALYSIS });
+
+    await analyzeSuture({ images: [SAMPLE_IMAGE], model: "claude-sonnet-5" });
+
+    expect(mockParse).toHaveBeenCalledOnce();
+    expect(mockParse.mock.calls[0][0].model).toBe("claude-sonnet-5");
+  });
+
+  it("falls back to ANALYSIS_MODEL when an unrecognized model is requested", async () => {
+    mockParse.mockResolvedValue({ stop_reason: "end_turn", parsed_output: FAKE_SUTURE_ANALYSIS });
+
+    await analyzeSuture({ images: [SAMPLE_IMAGE], model: "some-unvetted-model" });
+
+    expect(mockParse.mock.calls[0][0].model).toBe("claude-opus-5");
+  });
+
+  it("escalates to Opus when Sonnet's own analysis is below high confidence", async () => {
+    const sonnetResult = { ...FAKE_SUTURE_ANALYSIS, confidence: "low" as const };
+    const opusResult = { ...FAKE_SUTURE_ANALYSIS, confidence: "high" as const };
+    mockParse
+      .mockResolvedValueOnce({ stop_reason: "end_turn", parsed_output: sonnetResult })
+      .mockResolvedValueOnce({ stop_reason: "end_turn", parsed_output: opusResult });
+
+    const result = await analyzeSuture({ images: [SAMPLE_IMAGE], model: "claude-sonnet-5" });
+
+    expect(mockParse).toHaveBeenCalledTimes(2);
+    expect(mockParse.mock.calls[0][0].model).toBe("claude-sonnet-5");
+    expect(mockParse.mock.calls[1][0].model).toBe("claude-opus-5");
+    expect(result).toEqual({ analysis: opusResult, modelUsed: "claude-opus-5", escalated: true });
+  });
+
+  it("does not escalate when Sonnet is confident", async () => {
+    const sonnetResult = { ...FAKE_SUTURE_ANALYSIS, confidence: "high" as const };
+    mockParse.mockResolvedValue({ stop_reason: "end_turn", parsed_output: sonnetResult });
+
+    const result = await analyzeSuture({ images: [SAMPLE_IMAGE], model: "claude-sonnet-5" });
+
+    expect(mockParse).toHaveBeenCalledOnce();
+    expect(result).toEqual({ analysis: sonnetResult, modelUsed: "claude-sonnet-5", escalated: false });
+  });
+
+  it("never escalates when Opus itself is already the requested model, even at low confidence", async () => {
+    const lowConfidenceOpus = { ...FAKE_SUTURE_ANALYSIS, confidence: "low" as const };
+    mockParse.mockResolvedValue({ stop_reason: "end_turn", parsed_output: lowConfidenceOpus });
+
+    const result = await analyzeSuture({ images: [SAMPLE_IMAGE], model: "claude-opus-5" });
+
+    expect(mockParse).toHaveBeenCalledOnce();
+    expect(result).toEqual({
+      analysis: lowConfidenceOpus,
+      modelUsed: "claude-opus-5",
+      escalated: false,
+    });
   });
 
   it("throws when the model refuses the request", async () => {

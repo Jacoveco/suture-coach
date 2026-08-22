@@ -2,22 +2,31 @@
 
 import { useState } from "react";
 import { MediaCapture } from "@/components/capture/MediaCapture";
+import { ModelSelector } from "@/components/capture/ModelSelector";
 import { FeedbackSummary } from "@/components/feedback/FeedbackSummary";
 import { RecommendationList } from "@/components/feedback/RecommendationList";
 import { SutureOverlay } from "@/components/visualization/SutureOverlay";
 import { isVideoFile } from "@/lib/media/validate";
 import { extractFramesFromVideo } from "@/lib/media/extractFrames";
+import { MODEL_LABELS, type SelectableModel } from "@/lib/analysis/models";
 import type { SutureAnalysis } from "@/lib/analysis/schema";
 
 type FlowState =
   | { status: "idle" }
   | { status: "extracting" }
   | { status: "analyzing"; imageUrl: string }
-  | { status: "done"; imageUrl: string; analysis: SutureAnalysis }
+  | {
+      status: "done";
+      imageUrl: string;
+      analysis: SutureAnalysis;
+      modelUsed: string;
+      escalated: boolean;
+    }
   | { status: "error"; imageUrl?: string; message: string };
 
 export default function Home() {
   const [state, setState] = useState<FlowState>({ status: "idle" });
+  const [selectedModel, setSelectedModel] = useState<SelectableModel>("claude-opus-5");
 
   async function submitForAnalysis(files: File[], imageUrl: string) {
     setState({ status: "analyzing", imageUrl });
@@ -25,6 +34,7 @@ export default function Home() {
     try {
       const formData = new FormData();
       for (const file of files) formData.append("media", file);
+      formData.append("model", selectedModel);
 
       const response = await fetch("/api/analyze", { method: "POST", body: formData });
       const body = await response.json();
@@ -38,7 +48,13 @@ export default function Home() {
         return;
       }
 
-      setState({ status: "done", imageUrl, analysis: body.analysis });
+      setState({
+        status: "done",
+        imageUrl,
+        analysis: body.analysis,
+        modelUsed: body.modelUsed,
+        escalated: body.escalated,
+      });
     } catch {
       setState({
         status: "error",
@@ -95,6 +111,8 @@ export default function Home() {
           be used to make clinical decisions.
         </p>
 
+        <ModelSelector value={selectedModel} onChange={setSelectedModel} />
+
         <MediaCapture onFileSelected={handleFileSelected} />
 
         {state.status === "extracting" && (
@@ -124,6 +142,13 @@ export default function Home() {
 
         {state.status === "done" && (
           <>
+            <p className="text-xs text-zinc-500 dark:text-zinc-500">
+              {state.escalated
+                ? `Analyzed with ${MODEL_LABELS["claude-opus-5"].label} — automatically escalated from ${MODEL_LABELS[selectedModel].label} for a closer look (confidence was below "high").`
+                : `Analyzed with ${MODEL_LABELS[state.modelUsed as SelectableModel]?.label ?? state.modelUsed}.`}
+              {" "}Confidence: {state.analysis.confidence}
+              {state.analysis.confidenceReason ? ` — ${state.analysis.confidenceReason}` : ""}
+            </p>
             <FeedbackSummary analysis={state.analysis} />
             <RecommendationList analysis={state.analysis} />
           </>

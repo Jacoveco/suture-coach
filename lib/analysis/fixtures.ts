@@ -54,4 +54,5 @@ export const FAKE_SUTURE_ANALYSIS: SutureAnalysis = {
   disclaimer:
     "This feedback is generated for training purposes on simulated/practice material only. " +
     "It is not a diagnostic or clinical assessment.",
+  confidence: "high",
 };

@@ -27,10 +27,11 @@ function makeFile(name: string, type: string, sizeBytes: number): File {
   return new File([new Uint8Array(sizeBytes)], name, { type });
 }
 
-function requestWithFile(file: File | null, notes?: string): Request {
+function requestWithFile(file: File | null, notes?: string, model?: string): Request {
   const formData = new FormData();
   if (file) formData.append("media", file);
   if (notes) formData.append("notes", notes);
+  if (model) formData.append("model", model);
   return new Request("http://localhost/api/analyze", {
     method: "POST",
     body: formData,
@@ -69,19 +70,42 @@ describe("POST /api/analyze", () => {
   });
 
   it("calls analyzeSuture and returns 200 with the analysis on success", async () => {
-    mockAnalyzeSuture.mockResolvedValue(FAKE_SUTURE_ANALYSIS);
+    mockAnalyzeSuture.mockResolvedValue({
+      analysis: FAKE_SUTURE_ANALYSIS,
+      modelUsed: "claude-opus-5",
+      escalated: false,
+    });
     const file = makeFile("photo.jpg", "image/jpeg", 1024);
 
-    const response = await POST(requestWithFile(file, "left hand technique"));
+    const response = await POST(
+      requestWithFile(file, "left hand technique", "claude-sonnet-5"),
+    );
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.analysis).toEqual(FAKE_SUTURE_ANALYSIS);
+    expect(body.modelUsed).toBe("claude-opus-5");
+    expect(body.escalated).toBe(false);
 
     expect(mockAnalyzeSuture).toHaveBeenCalledOnce();
     const call = mockAnalyzeSuture.mock.calls[0][0];
     expect(call.notes).toBe("left hand technique");
+    expect(call.model).toBe("claude-sonnet-5");
     expect(call.images).toHaveLength(1);
     expect(call.images[0].mediaType).toBe("image/jpeg");
+  });
+
+  it("reports escalation in the response when the analysis was escalated", async () => {
+    mockAnalyzeSuture.mockResolvedValue({
+      analysis: FAKE_SUTURE_ANALYSIS,
+      modelUsed: "claude-opus-5",
+      escalated: true,
+    });
+    const file = makeFile("photo.jpg", "image/jpeg", 1024);
+
+    const response = await POST(requestWithFile(file, undefined, "claude-sonnet-5"));
+    const body = await response.json();
+    expect(body.escalated).toBe(true);
+    expect(body.modelUsed).toBe("claude-opus-5");
   });
 
   it("returns 502 when analyzeSuture throws", async () => {

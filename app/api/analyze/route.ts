@@ -45,6 +45,7 @@ export async function POST(request: Request) {
     }
 
     const notes = formData.get("notes");
+    const model = formData.get("model");
 
     try {
       const images = await Promise.all(
@@ -56,12 +57,13 @@ export async function POST(request: Request) {
         })),
       );
 
-      const analysis = await analyzeSuture({
+      const { analysis, modelUsed, escalated } = await analyzeSuture({
         images,
         notes: typeof notes === "string" ? notes : undefined,
+        model: typeof model === "string" ? model : undefined,
       });
 
-      return Response.json({ analysis });
+      return Response.json({ analysis, modelUsed, escalated });
     } catch (error) {
       return errorResponse(
         "analysis_failed",

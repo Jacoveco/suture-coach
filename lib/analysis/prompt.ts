@@ -21,5 +21,18 @@ by priority.
 
 Always populate "disclaimer" restating that this is a training/education tool
 providing technique feedback, not a diagnostic or clinical device, and that
-the assessment applies only to simulated/training material.`;
+the assessment applies only to simulated/training material.
+
+Always populate "confidence" with your honest self-assessment of how reliable
+THIS analysis is, based only on what the image(s) let you resolve clearly:
+- "high": stitches, spacing, and tissue tension/puckering are all clearly
+  visible and unambiguous.
+- "medium": mostly clear, but some cues are partially obscured, blurry, or
+  ambiguous (e.g. lighting, angle, partial occlusion).
+- "low": image quality, framing, or ambiguity meaningfully limits how much
+  you can confidently assess.
+Do not inflate confidence to seem more useful — a "medium" or "low" rating
+that triggers a closer second look is more helpful to the trainee than a
+falsely confident "high" rating on a hard-to-read image. If confidence is
+not "high", briefly explain why in "confidenceReason".`;
 }
