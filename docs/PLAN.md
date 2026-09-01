@@ -137,4 +137,9 @@ All nine v1 milestones from the original plan are now complete. Remaining work i
 
 ## Full architecture reference
 
-See the approved plan file from this session for the complete scaffold layout, folder structure, and per-milestone definition-of-done detail: `C:\Users\jacov\.claude\plans\firstly-i-want-to-zazzy-quill.md` (local to this machine, not part of the repo).
+The v1 scaffold plan this section originally pointed to (a machine-local Claude Code plan-mode
+file, not part of the repo) has since been superseded — v1 is complete and its milestones are
+recorded above. The v2 planning that followed lives in-repo instead: see
+[`docs/v2-lesson-curriculum-plan.md`](./v2-lesson-curriculum-plan.md) for the full guided-lesson
+curriculum plan (context, confirmed decisions, 14-lesson curriculum, and the 7-module build
+sequence).
