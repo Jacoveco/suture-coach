@@ -127,13 +127,20 @@ All CI checks pass on GitHub's own infrastructure (not just locally) as of commi
 | M8 | Full Playwright e2e + optional CI | **Done** |
 | M9 | Polish & compliance pass (disclaimer visibility, error-state audit, v2 backlog) | **Done** |
 
-All nine v1 milestones from the original plan are now complete. Remaining work is the v2 backlog above plus final real-device verification (in progress — see "Next session").
+All nine v1 milestones from the original plan are now complete: real-device verification, CI
+(GitHub Actions), and a live run against the real Claude API all happened during v1 wrap-up.
+v1 is done. Current work is v2 (guided lesson curriculum) — see "Next session" below.
 
 ## Next session — pick up here
 
-1. **Real device check**: in progress this session — dev server started bound to the LAN with `USE_FAKE_ANALYSIS=true` for the user to test from their actual phone (not just emulated Chromium/WebKit). Confirm: does the page load and look right at actual phone scale; does "Take Photo / Video" actually open the camera (the `capture="environment"` affordance emulation can't test); does a real photo upload flow through end-to-end. Update this section with the outcome once confirmed.
-2. **CI**: no GitHub Actions workflow exists yet — confirm with the user whether they want one before adding it (would run `vitest`, `playwright` [needs `npx playwright install` in the workflow], `eslint`, `next build` on push/PR).
-3. Once a real `ANTHROPIC_API_KEY` is available, do one live end-to-end run against the real Claude API (everything so far has used `USE_FAKE_ANALYSIS=true`) to sanity-check prompt quality and real response shape/latency.
+v2 planning is complete and approved — see
+[`docs/v2-lesson-curriculum-plan.md`](./v2-lesson-curriculum-plan.md) for the full plan (14-lesson
+curriculum, 7-module build sequence, v1-reuse touchpoints). No v2 code has been written yet.
+
+**Start with Module 1 (persistence foundation)**: add `DB_PATH` to `lib/env.ts`, `lib/db/client.ts`
+(lazy `better-sqlite3` singleton), `lib/db/progress.ts` (typed CRUD), unit tests against an
+in-memory DB. See the plan doc's Module 1 section for full detail and definition of done.
+Modules 2–7 follow in the order/dependencies laid out there.
 
 ## Full architecture reference
 
